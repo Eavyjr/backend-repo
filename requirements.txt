@@ -1,0 +1,8 @@
+flask
+flask-cors
+sympy
+numpy
+pytesseract
+opencv-python
+pillow
+gunicorn
