@@ -1,25 +1,36 @@
+from flask import Flask, request, jsonify
 import pytesseract
-import cv2
 from PIL import Image
-import config
+import os
 
-if hasattr(config, "TESSERACT_PATH"):
-    pytesseract.pytesseract.tesseract_cmd = config.TESSERACT_PATH
+app = Flask(__name__)
+UPLOAD_FOLDER = "static/uploads"
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 def extract_text_from_image(image_path):
-    img = cv2.imread(image_path)
-    if img is None:
-        raise ValueError(f"Error loading image. Check if the file exists: {image_path}")
-    
-    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    processed_img = cv2.adaptiveThreshold(gray, 255, 
-                                          cv2.ADAPTIVE_THRESH_GAUSSIAN_C, 
-                                          cv2.THRESH_BINARY, 11, 2)
-    pil_img = Image.fromarray(processed_img)
-    text = pytesseract.image_to_string(pil_img, config="--psm 6")
-    
-    return text.strip()
+    try:
+        image = Image.open(image_path)
+        text = pytesseract.image_to_string(image)
+        return text
+    except Exception as e:
+        return str(e)
 
-# Example Usage:
-text_result = extract_text_from_image("C:/Users/PHARM_CHIDIEBERE/Desktop/Project/backend/test_image.png")
-print(text_result)
+@app.route('/upload', methods=['POST'])
+def upload_image():
+    if 'image' not in request.files:
+        return jsonify({"error": "No image file provided"}), 400
+    
+    file = request.files['image']
+    if file.filename == '':
+        return jsonify({"error": "No selected file"}), 400
+    
+    file_path = os.path.join(app.config['UPLOAD_FOLDER'], file.filename)
+    file.save(file_path)
+    
+    extracted_text = extract_text_from_image(file_path)
+    
+    return jsonify({"extracted_text": extracted_text})
+
+if __name__ == '__main__':
+    app.run(debug=True)
